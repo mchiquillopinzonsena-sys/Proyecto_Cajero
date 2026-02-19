@@ -109,7 +109,7 @@ def iniciar_sistema():
 
     style.map("Treeview", background=[("selected", "#334155")])
 
-
+#DEL SISTEMA
 #FUNCIONES
     def limpiar_campos():
         entry_descripcion.delete(0, tk.END)
