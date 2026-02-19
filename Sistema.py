@@ -244,7 +244,7 @@ def iniciar_sistema():
     ventana.mainloop()
 
 
-
+#Ventana DE login
 def ventana_login():
 
     login = tk.Tk()
