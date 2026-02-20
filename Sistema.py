@@ -344,6 +344,9 @@ def ventana_login():
     tk.Button(login, text="Registrarse",
               bg="#2563EB", fg="white",
               command=registrar).pack()
+    tk.Button(login, text="¿Olvidaste tu contraseña?",
+              bg="#FACC15",fg="black",
+              command=recuperar_contrasena).pack(pady=5)
     
    
 
