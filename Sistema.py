@@ -244,6 +244,7 @@ def iniciar_sistema():
     ventana.mainloop()
 
 
+
 #Ventana DE login
 def ventana_login():
 
@@ -263,6 +264,10 @@ def ventana_login():
     tk.Label(login, text="Contraseña", bg="#0F172A", fg="white").pack()
     entry_pass = tk.Entry(login, show="*")
     entry_pass.pack(pady=5)
+    
+    tk.Button(login, text="¿Olvidaste tu contraseña?",
+          bg="#FACC15", fg="black",
+          command=recuperar_contrasena).pack(pady=5)
 
     def iniciar_sesion():
         doc = entry_doc.get()
@@ -296,6 +301,35 @@ def ventana_login():
 
     login.mainloop()
 
+def recuperar_contrasena():
+    ventana_rec = tk.Toplevel()
+    ventana_rec.title("Recuperar contraseña")
+    ventana_rec.geometry("300x200")
+    ventana_rec.configure(bg="#0F172A")
+
+    tk.Label(ventana_rec, text="Documento",
+             bg="#0F172A", fg="white").pack(pady=5)
+
+    entry_doc_rec = tk.Entry(ventana_rec)
+    entry_doc_rec.pack(pady=5)
+
+    def buscar():
+        doc = entry_doc_rec.get()
+
+        cursor = conexion.cursor()
+        cursor.execute("SELECT contrasena FROM usuarios WHERE documento=?", (doc,))
+        resultado = cursor.fetchone()
+
+        if resultado:
+            messagebox.showinfo("Contraseña", f"Tu contraseña es: {resultado[0]}")
+        else:
+            messagebox.showerror("Error", "Usuario no encontrado")
+
+        ventana_rec.destroy()
+
+    tk.Button(ventana_rec, text="Recuperar",
+              bg="#16A34A", fg="white",
+              command=buscar).pack(pady=15)
 
 ventana_login()
 conexion.close()
