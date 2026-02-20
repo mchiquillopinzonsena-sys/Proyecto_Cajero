@@ -6,8 +6,16 @@ import hashlib
 import pandas as pd
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+import pandas as pd
+import os
+from tkinter import messagebox, filedialog
+from openpyxl import load_workbook
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table as PDFTable, TableStyle, Image
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
 
-# ---------------- BASE DE DATOS ----------------
+
 
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
@@ -44,7 +52,6 @@ def crear_tablas():
 
 crear_tablas()
 
-# ---------------- FUNCIONES DE SEGURIDAD ----------------
 
 def encriptar(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -107,7 +114,6 @@ def recuperar_contrasena():
         command=cambiar
     ).pack(pady=15)
 
-# ---------------- MOVIMIENTOS ----------------
 
 def guardar_movimiento(tipo, descripcion, monto):
     fecha = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -136,7 +142,7 @@ def obtener_historial():
     """, (usuario_actual,))
     return cursor.fetchall()
 
-# ---------------- EXPORTAR ----------------
+# EXPORTAR 
 
 def exportar_a_excel():
     try:
@@ -151,10 +157,40 @@ def exportar_a_excel():
             messagebox.showinfo("Info", "No hay movimientos para exportar")
             return
 
+        archivo = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Archivos de Excel", "*.xlsx")]
+        )
+
+        if not archivo:
+            return
+
         df = pd.DataFrame(datos, columns=["Tipo", "Descripción", "Monto", "Fecha"])
-        df.to_excel("movimientos.xlsx", index=False)
+        df.to_excel(archivo, index=False)
+
+        wb = load_workbook(archivo)
+        ws = wb.active
+
+        rango = f"A1:D{ws.max_row}"
+        tabla = Table(displayName="TablaMovimientos", ref=rango)
+
+        estilo = TableStyleInfo(
+            name="TableStyleMedium9",
+            showFirstColumn=False,
+            showLastColumn=False,
+            showRowStripes=True,
+            showColumnStripes=False,
+        )
+
+        tabla.tableStyleInfo = estilo
+        ws.add_table(tabla)
+
+        wb.save(archivo)
+
+        os.startfile(archivo)  # Abre automáticamente el archivo
 
         messagebox.showinfo("Exportado", "Movimientos exportados a Excel exitosamente!")
+
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo exportar a Excel:\n{e}")
 
@@ -171,30 +207,59 @@ def exportar_a_pdf():
             messagebox.showinfo("Info", "No hay movimientos para exportar")
             return
 
-        archivo_pdf = "movimientos.pdf"
-        c = canvas.Canvas(archivo_pdf, pagesize=letter)
+        archivo_pdf = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("Archivos PDF", "*.pdf")]
+        )
 
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(200, 750, "Movimientos del Usuario")
+        if not archivo_pdf:
+            return
 
-        y = 700
-        c.setFont("Helvetica", 12)
+        doc = SimpleDocTemplate(archivo_pdf, pagesize=letter)
+        elementos = []
+
+        # Imagen superior
+        img = Image("fondo.png", width=500, height=120)
+        elementos.append(img)
+        elementos.append(Spacer(1, 20))
+
+        # Datos usuario
+        cursor.execute("SELECT nombre, documento FROM usuarios WHERE id=?", (usuario_actual,))
+        usuario = cursor.fetchone()
+
+        estilo = ParagraphStyle(name='Normal', fontSize=12)
+
+        elementos.append(Paragraph(f"<b>Usuario:</b> {usuario[0]}", estilo))
+        elementos.append(Paragraph(f"<b>Documento:</b> {usuario[1]}", estilo))
+        elementos.append(Spacer(1, 20))
+
+        # Tabla
+        datos_tabla = [["Tipo", "Descripción", "Monto", "Fecha"]]
 
         for tipo, desc, monto, fecha in datos:
-            texto = f"{tipo}   |   {desc}   |   ${monto:,.2f}   |   {fecha}"
-            c.drawString(30, y, texto)
-            y -= 20
-            if y < 50:
-                c.showPage()
-                y = 750
+            datos_tabla.append([tipo, desc, f"${monto:,.2f}", fecha])
 
-        c.save()
+        tabla = PDFTable(datos_tabla, colWidths=[80, 200, 100, 100])
+
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1E293B")),
+            ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+            ('ALIGN',(2,1),(-1,-1),'CENTER'),
+            ('GRID', (0,0), (-1,-1), 1, colors.grey),
+            ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+        ]))
+
+        elementos.append(tabla)
+
+        doc.build(elementos)
+
+        os.startfile(archivo_pdf)  # Abre automáticamente
+
         messagebox.showinfo("Exportado", "Movimientos exportados a PDF exitosamente!")
+
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo exportar a PDF:\n{e}")
-
-# ---------------- INTERFAZ PRINCIPAL ----------------
-
 def iniciar_sistema():
     ventana = tk.Tk()
     ventana.title("Sistema Financiero PRO")
@@ -335,7 +400,7 @@ def iniciar_sistema():
 
     ventana.mainloop()
 
-# ---------------- REGISTRO Y LOGIN ----------------
+
 
 def ventana_registro():
     reg = tk.Toplevel()
