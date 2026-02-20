@@ -6,7 +6,6 @@ import hashlib
 import pandas as pd
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-import pandas as pd
 import os
 from tkinter import messagebox, filedialog
 from openpyxl import load_workbook
@@ -20,12 +19,6 @@ from reportlab.lib.styles import ParagraphStyle
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
 
-try:
-    cursor.execute("ALTER TABLE usuarios ADD COLUMN nombre TEXT DEFAULT ''")
-    cursor.execute("ALTER TABLE usuarios ADD COLUMN apellido TEXT DEFAULT ''")
-    conexion.commit()
-except:
-    pass
 
 def crear_tablas():
     cursor.execute("""
@@ -49,6 +42,12 @@ def crear_tablas():
     )
     """)
     conexion.commit()
+try:
+    cursor.execute("ALTER TABLE usuarios ADD COLUMN nombre TEXT DEFAULT ''")
+    cursor.execute("ALTER TABLE usuarios ADD COLUMN apellido TEXT DEFAULT ''")
+    conexion.commit()
+except:
+    pass
 
 crear_tablas()
 
@@ -219,11 +218,12 @@ def exportar_a_pdf():
         elementos = []
 
         # Imagen superior
-        img = Image("fondo.png", width=500, height=120)
+        
+        img = Image(r"C:\Users\APRENDIZ.SOPORTEPQ\Desktop\SMARTFINANCE.png", width=500, height=120)
         elementos.append(img)
         elementos.append(Spacer(1, 20))
 
-        # Datos usuario
+        
         cursor.execute("SELECT nombre, documento FROM usuarios WHERE id=?", (usuario_actual,))
         usuario = cursor.fetchone()
 
@@ -233,7 +233,6 @@ def exportar_a_pdf():
         elementos.append(Paragraph(f"<b>Documento:</b> {usuario[1]}", estilo))
         elementos.append(Spacer(1, 20))
 
-        # Tabla
         datos_tabla = [["Tipo", "Descripción", "Monto", "Fecha"]]
 
         for tipo, desc, monto, fecha in datos:
@@ -260,6 +259,7 @@ def exportar_a_pdf():
 
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo exportar a PDF:\n{e}")
+        
 def iniciar_sistema():
     ventana = tk.Tk()
     ventana.title("Sistema Financiero PRO")
@@ -487,4 +487,3 @@ def ventana_login():
     login.mainloop()
 
 ventana_login()
-conexion.close()
