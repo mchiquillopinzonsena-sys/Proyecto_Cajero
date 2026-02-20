@@ -3,12 +3,12 @@ import tkinter as tk
 import hashlib
 from tkinter import ttk, messagebox
 
-
+# ---------------- BASE DE DATOS ----------------
 
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
 
-
+# ---------------- VENTANA PARA VER USUARIOS ----------------
 
 def ver_base_de_datos():
     ventana_bd = tk.Toplevel()
@@ -54,20 +54,8 @@ def ver_base_de_datos():
         command=ventana_bd.destroy
     ).pack(pady=10)
 
+# ---------------- ADMINISTRAR USUARIOS ----------------
 
-root = tk.Tk()
-root.title("Visualizar Usuarios")
-root.geometry("300x200")
-root.configure(bg="#0F172A")
-
-tk.Button(
-    root,
-    text="Ver Usuarios",
-    bg="#2563EB",
-    fg="white",
-    command=ver_base_de_datos
-).pack(expand=True, pady=50)
-root.mainloop()
 def administrar_usuarios():
     ventana_admin = tk.Toplevel()
     ventana_admin.title("Administrar Usuarios")
@@ -94,6 +82,8 @@ def administrar_usuarios():
 
     tabla_admin.pack(fill="both", expand=True)
 
+    # --- FUNCIONES AUXILIARES ---
+
     def cargar_usuarios():
         tabla_admin.delete(*tabla_admin.get_children())
         cursor.execute("SELECT id, documento, nombre, apellido FROM usuarios")
@@ -102,7 +92,6 @@ def administrar_usuarios():
 
     cargar_usuarios()
 
-    # --- ELIMINAR USUARIO ---
     def eliminar_usuario():
         selection = tabla_admin.selection()
         if not selection:
@@ -119,7 +108,6 @@ def administrar_usuarios():
             cargar_usuarios()
             messagebox.showinfo("Éxito", "Usuario eliminado")
 
-    # --- MODIFICAR USUARIO ---
     def editar_usuario():
         selection = tabla_admin.selection()
         if not selection:
@@ -173,7 +161,6 @@ def administrar_usuarios():
                   bg="#16A34A", fg="white",
                   command=guardar_cambios).pack(pady=10)
 
-    # --- AGREGAR USUARIO DESDE ADMIN ---
     def agregar_usuario_admin():
         ventana_agregar = tk.Toplevel()
         ventana_agregar.title("Agregar usuario")
@@ -222,7 +209,8 @@ def administrar_usuarios():
                   bg="#2563EB", fg="white",
                   command=guardar_agregado).pack(pady=10)
 
-    # --- BOTONES ---
+    # --- BOTONES PRINCIPALES ---
+
     botones_frame = tk.Frame(ventana_admin, bg="#0F172A")
     botones_frame.pack(pady=10)
 
@@ -234,6 +222,29 @@ def administrar_usuarios():
 
     tk.Button(botones_frame, text="Agregar usuario",
               bg="#16A34A", fg="white", command=agregar_usuario_admin).grid(row=0, column=2, padx=10)
+
+# ------------ VENTANA PRINCIPAL (solo para ejecutar) ------------
+
+root = tk.Tk()
+root.title("Sistema de Usuarios")
+root.geometry("300x200")
+root.configure(bg="#0F172A")
+
+tk.Button(
+    root,
+    text="Ver Usuarios",
+    bg="#2563EB",
+    fg="white",
+    command=ver_base_de_datos
+).pack(pady=10)
+
+tk.Button(
+    root,
+    text="Administrar Usuarios",
+    bg="#16A34A",
+    fg="white",
+    command=administrar_usuarios
+).pack(pady=10)
 
 root.mainloop()
 
