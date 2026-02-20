@@ -40,33 +40,55 @@ def encriptar(password):
 
 def recuperar_contrasena():
     ventana_rec = tk.Toplevel()
-    ventana_rec.title("Recuperar contraseña")
-    ventana_rec.geometry("300x200")
+    ventana_rec.title("Recuperar / Cambiar contraseña")
+    ventana_rec.geometry("350x250")
     ventana_rec.configure(bg="#0F172A")
 
-    tk.Label(ventana_rec, text="Documento",
-             bg="#0F172A", fg="white").pack(pady=5)
-
+    tk.Label(ventana_rec, text="Documento", bg="#0F172A", fg="white").pack(pady=5)
     entry_doc_rec = tk.Entry(ventana_rec)
     entry_doc_rec.pack(pady=5)
 
-    def buscar():
-        doc = entry_doc_rec.get()
+    tk.Label(ventana_rec, text="Nueva Contraseña", bg="#0F172A", fg="white").pack(pady=5)
+    entry_nueva = tk.Entry(ventana_rec, show="*")
+    entry_nueva.pack(pady=5)
 
-        cursor = conexion.cursor()
-        cursor.execute("SELECT contrasena FROM usuarios WHERE documento=?", (doc,))
-        resultado = cursor.fetchone()
+    tk.Label(ventana_rec, text="Confirmar Contraseña", bg="#0F172A", fg="white").pack(pady=5)
+    entry_confirm = tk.Entry(ventana_rec, show="*")
+    entry_confirm.pack(pady=5)
 
-        if resultado:
-            messagebox.showinfo("Contraseña", f"Tu contraseña es: {resultado[0]}")
+    def cambiar():
+        doc = entry_doc_rec.get().strip()
+        nueva = entry_nueva.get().strip()
+        confirm = entry_confirm.get().strip()
+
+        if not doc or not nueva or not confirm:
+            messagebox.showerror("Error", "Complete todos los campos")
+            return
+
+        if nueva != confirm:
+            messagebox.showerror("Error", "Las contraseñas no coinciden")
+            return
+
+        cursor.execute("SELECT id FROM usuarios WHERE documento=?", (doc,))
+        usuario = cursor.fetchone()
+        if usuario:
+            cursor.execute(
+                "UPDATE usuarios SET contraseña=? WHERE id=?",
+                (encriptar(nueva), usuario[0])
+            )
+            conexion.commit()
+            messagebox.showinfo("Éxito", "Contraseña cambiada correctamente")
+            ventana_rec.destroy()
         else:
             messagebox.showerror("Error", "Usuario no encontrado")
 
-        ventana_rec.destroy()
-
-    tk.Button(ventana_rec, text="Recuperar",
-              bg="#16A34A", fg="white",
-              command=buscar).pack(pady=15)
+    tk.Button(
+        ventana_rec,
+        text="Cambiar contraseña",
+        bg="#16A34A",
+        fg="white",
+        command=cambiar
+    ).pack(pady=15)
 
 def registrar_usuario(documento, contraseña):
     try:
@@ -322,9 +344,8 @@ def ventana_login():
     tk.Button(login, text="Registrarse",
               bg="#2563EB", fg="white",
               command=registrar).pack()
-    tk.Button(login, text="¿Olvidaste tu contraseña?",
-          bg="#FACC15", fg="black",
-          command=recuperar_contrasena).pack(pady=5)
+    
+   
 
     login.mainloop()
 
