@@ -3,12 +3,12 @@ import tkinter as tk
 import hashlib
 from tkinter import ttk, messagebox
 
-# ---------------- BASE DE DATOS ----------------
+
 
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
 
-# ---------------- VENTANA PARA VER USUARIOS ----------------
+
 
 def ver_base_de_datos():
     ventana_bd = tk.Toplevel()
@@ -54,7 +54,6 @@ def ver_base_de_datos():
         command=ventana_bd.destroy
     ).pack(pady=10)
 
-# ---------------- ADMINISTRAR USUARIOS ----------------
 
 def administrar_usuarios():
     ventana_admin = tk.Toplevel()
@@ -82,7 +81,7 @@ def administrar_usuarios():
 
     tabla_admin.pack(fill="both", expand=True)
 
-    # --- FUNCIONES AUXILIARES ---
+
 
     def cargar_usuarios():
         tabla_admin.delete(*tabla_admin.get_children())
@@ -209,7 +208,7 @@ def administrar_usuarios():
                   bg="#2563EB", fg="white",
                   command=guardar_agregado).pack(pady=10)
 
-    # --- BOTONES PRINCIPALES ---
+
 
     botones_frame = tk.Frame(ventana_admin, bg="#0F172A")
     botones_frame.pack(pady=10)
@@ -223,7 +222,7 @@ def administrar_usuarios():
     tk.Button(botones_frame, text="Agregar usuario",
               bg="#16A34A", fg="white", command=agregar_usuario_admin).grid(row=0, column=2, padx=10)
 
-# ------------ VENTANA PRINCIPAL (solo para ejecutar) ------------
+
 
 root = tk.Tk()
 root.title("Sistema de Usuarios")
