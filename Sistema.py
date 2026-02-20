@@ -327,7 +327,7 @@ def ventana_login():
     login.geometry("400x420")
     login.configure(bg="#0F172A")
 
-    tk.Label(login, text="Iniciar Sesión / Registrarse",
+    tk.Label(login, text="Iniciar Sesión",
              bg="#0F172A", fg="white",
              font=("Segoe UI", 16, "bold")).pack(pady=20)
 
