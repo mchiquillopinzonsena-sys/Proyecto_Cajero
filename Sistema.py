@@ -4,24 +4,29 @@ from tkinter import ttk, messagebox
 from datetime import datetime
 import hashlib
 
-
-#Base de datos Con SQL y Creacion de estas tablas
+# ---------------- BASE DE DATOS ----------------
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
 
-cursor.execute("ALTER TABLE usuarios ADD COLUMN nombre TEXT DEFAULT ''")
-cursor.execute("ALTER TABLE usuarios ADD COLUMN apellido TEXT DEFAULT ''")
-conexion.commit()
+# Agregar columnas si no existen
+try:
+    cursor.execute("ALTER TABLE usuarios ADD COLUMN nombre TEXT DEFAULT ''")
+    cursor.execute("ALTER TABLE usuarios ADD COLUMN apellido TEXT DEFAULT ''")
+    conexion.commit()
+except:
+    pass
+
 
 def crear_tablas():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         documento TEXT UNIQUE NOT NULL,
-        contraseña TEXT NOT NULL
+        contraseña TEXT NOT NULL,
+        nombre TEXT,
+        apellido TEXT
     )
     """)
-
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS movimientos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,8 +42,7 @@ def crear_tablas():
 
 crear_tablas()
 
-
-
+# ---------------- FUNCIONES ----------------
 def encriptar(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -68,7 +72,6 @@ def recuperar_contrasena():
         if not doc or not nueva or not confirm:
             messagebox.showerror("Error", "Complete todos los campos")
             return
-
         if nueva != confirm:
             messagebox.showerror("Error", "Las contraseñas no coinciden")
             return
@@ -94,17 +97,6 @@ def recuperar_contrasena():
         command=cambiar
     ).pack(pady=15)
 
-def registrar_usuario(documento, contraseña):
-    try:
-        cursor.execute(
-            "INSERT INTO usuarios (documento, contraseña) VALUES (?, ?)",
-            (documento, encriptar(contraseña))
-        )
-        conexion.commit()
-        return True
-    except:
-        return False
-
 
 def verificar_login(documento, contraseña):
     cursor.execute(
@@ -114,7 +106,7 @@ def verificar_login(documento, contraseña):
     return cursor.fetchone()
 
 
-
+# ---------------- SISTEMA FINANCIERO ----------------
 def guardar_movimiento(tipo, descripcion, monto):
     fecha = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     cursor.execute(
@@ -125,7 +117,7 @@ def guardar_movimiento(tipo, descripcion, monto):
 
 def obtener_saldo():
     cursor.execute("""
-        SELECT 
+        SELECT
             COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto END), 0) -
             COALESCE(SUM(CASE WHEN tipo='egreso' THEN monto END), 0)
         FROM movimientos
@@ -142,10 +134,7 @@ def obtener_historial():
     """, (usuario_actual,))
     return cursor.fetchall()
 
-
-
 def iniciar_sistema():
-# Estilo
     ventana = tk.Tk()
     ventana.title("Sistema Financiero PRO")
     ventana.geometry("900x650")
@@ -153,18 +142,14 @@ def iniciar_sistema():
 
     style = ttk.Style()
     style.theme_use("clam")
-
     style.configure("Treeview",
         background="#1E293B",
         foreground="white",
         rowheight=28,
         fieldbackground="#1E293B"
     )
-
     style.map("Treeview", background=[("selected", "#334155")])
 
-#DEL SISTEMA
-#FUNCIONES
     def limpiar_campos():
         entry_descripcion.delete(0, tk.END)
         entry_monto.delete(0, tk.END)
@@ -182,7 +167,6 @@ def iniciar_sistema():
         try:
             descripcion = entry_descripcion.get().strip()
             monto = float(entry_monto.get())
-
             if not descripcion:
                 messagebox.showerror("Error", "Ingrese una descripción")
                 return
@@ -191,7 +175,6 @@ def iniciar_sistema():
             limpiar_campos()
             actualizar_saldo()
             cargar_historial()
-
         except ValueError:
             messagebox.showerror("Error", "Monto inválido")
 
@@ -199,7 +182,6 @@ def iniciar_sistema():
         try:
             descripcion = entry_descripcion.get().strip()
             monto = float(entry_monto.get())
-
             if not descripcion:
                 messagebox.showerror("Error", "Ingrese una descripción")
                 return
@@ -208,15 +190,11 @@ def iniciar_sistema():
             limpiar_campos()
             actualizar_saldo()
             cargar_historial()
-
         except ValueError:
             messagebox.showerror("Error", "Monto inválido")
 
-
-
     barra = tk.Frame(ventana, bg="#111827", height=60)
     barra.pack(fill="x")
-    tk
 
     tk.Label(
         barra,
@@ -225,7 +203,7 @@ def iniciar_sistema():
         fg="white",
         font=("Segoe UI", 16, "bold")
     ).pack(side="left", padx=20)
-#Bu
+
     tk.Button(
         barra,
         text="Cerrar sesión",
@@ -234,7 +212,6 @@ def iniciar_sistema():
         relief="flat",
         command=lambda: [ventana.destroy(), ventana_login()]
     ).pack(side="right", padx=20)
-
 
 
     frame_form = tk.Frame(ventana, bg="#1E293B")
@@ -265,7 +242,6 @@ def iniciar_sistema():
               command=agregar_egreso).grid(row=3, column=1, pady=15)
 
 
-
     frame_saldo = tk.Frame(ventana, bg="#1E293B")
     frame_saldo.pack(pady=10, padx=40, fill="x")
 
@@ -277,7 +253,6 @@ def iniciar_sistema():
         fg="#FACC15"
     )
     label_saldo.pack(pady=15)
-
 
 
     tabla_frame = tk.Frame(ventana, bg="#0F172A")
@@ -297,23 +272,29 @@ def iniciar_sistema():
 
     ventana.mainloop()
 
+# ---------------- LOGIN & REGISTRO ----------------
 
-        
-#Ventana DE login
 def ventana_login():
-
     login = tk.Tk()
     login.title("Login")
-    login.geometry("350x350")
+    login.geometry("400x420")
     login.configure(bg="#0F172A")
 
-    tk.Label(login, text="Iniciar Sesión",
+    tk.Label(login, text="Iniciar Sesión / Registrarse",
              bg="#0F172A", fg="white",
              font=("Segoe UI", 16, "bold")).pack(pady=20)
 
     tk.Label(login, text="Documento", bg="#0F172A", fg="white").pack()
     entry_doc = tk.Entry(login)
     entry_doc.pack(pady=5)
+
+    tk.Label(login, text="Nombre", bg="#0F172A", fg="white").pack(pady=5)
+    entry_nombre = tk.Entry(login)
+    entry_nombre.pack(pady=5)
+
+    tk.Label(login, text="Apellido", bg="#0F172A", fg="white").pack(pady=5)
+    entry_apellido = tk.Entry(login)
+    entry_apellido.pack(pady=5)
 
     tk.Label(login, text="Contraseña", bg="#0F172A", fg="white").pack()
     entry_pass = tk.Entry(login, show="*")
@@ -333,12 +314,23 @@ def ventana_login():
             messagebox.showerror("Error", "Datos incorrectos")
 
     def registrar():
-        doc = entry_doc.get()
-        pas = entry_pass.get()
+        doc = entry_doc.get().strip()
+        nombre = entry_nombre.get().strip()
+        apellido = entry_apellido.get().strip()
+        pas = entry_pass.get().strip()
 
-        if registrar_usuario(doc, pas):
+        if not doc or not nombre or not apellido or not pas:
+            messagebox.showerror("Error", "Complete todos los campos")
+            return
+
+        try:
+            cursor.execute(
+                "INSERT INTO usuarios (documento, nombre, apellido, contraseña) VALUES (?, ?, ?, ?)",
+                (doc, nombre, apellido, encriptar(pas))
+            )
+            conexion.commit()
             messagebox.showinfo("Éxito", "Usuario registrado")
-        else:
+        except:
             messagebox.showerror("Error", "Usuario ya existe")
 
     tk.Button(login, text="Iniciar sesión",
@@ -348,12 +340,10 @@ def ventana_login():
     tk.Button(login, text="Registrarse",
               bg="#2563EB", fg="white",
               command=registrar).pack()
-    
+
     tk.Button(login, text="¿Olvidaste tu contraseña?",
-              bg="#FAD015",fg="black",
+              bg="#FAD015", fg="black",
               command=recuperar_contrasena).pack(pady=5)
-    
-   
 
     login.mainloop()
 
