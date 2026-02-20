@@ -9,6 +9,10 @@ import hashlib
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
 
+cursor.execute("ALTER TABLE usuarios ADD COLUMN nombre TEXT DEFAULT ''")
+cursor.execute("ALTER TABLE usuarios ADD COLUMN apellido TEXT DEFAULT ''")
+conexion.commit()
+
 def crear_tablas():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS usuarios (
@@ -344,8 +348,9 @@ def ventana_login():
     tk.Button(login, text="Registrarse",
               bg="#2563EB", fg="white",
               command=registrar).pack()
+    
     tk.Button(login, text="¿Olvidaste tu contraseña?",
-              bg="#FACC15",fg="black",
+              bg="#FAD015",fg="black",
               command=recuperar_contrasena).pack(pady=5)
     
    
