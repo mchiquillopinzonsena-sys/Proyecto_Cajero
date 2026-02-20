@@ -3,8 +3,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import hashlib
+import pandas as pd
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
-
+# ---------------- BASE DE DATOS ----------------
 
 conexion = sqlite3.connect("finanzas.db")
 cursor = conexion.cursor()
@@ -41,10 +44,17 @@ def crear_tablas():
 
 crear_tablas()
 
-
+# ---------------- FUNCIONES DE SEGURIDAD ----------------
 
 def encriptar(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+def verificar_login(documento, contraseña):
+    cursor.execute(
+        "SELECT id, nombre, apellido FROM usuarios WHERE documento=? AND contraseña=?",
+        (documento, encriptar(contraseña))
+    )
+    return cursor.fetchone()
 
 def recuperar_contrasena():
     ventana_rec = tk.Toplevel()
@@ -97,13 +107,7 @@ def recuperar_contrasena():
         command=cambiar
     ).pack(pady=15)
 
-def verificar_login(documento, contraseña):
-    cursor.execute(
-        "SELECT id FROM usuarios WHERE documento=? AND contraseña=?",
-        (documento, encriptar(contraseña))
-    )
-    return cursor.fetchone()
-
+# ---------------- MOVIMIENTOS ----------------
 
 def guardar_movimiento(tipo, descripcion, monto):
     fecha = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -132,6 +136,65 @@ def obtener_historial():
     """, (usuario_actual,))
     return cursor.fetchall()
 
+# ---------------- EXPORTAR ----------------
+
+def exportar_a_excel():
+    try:
+        cursor.execute("""
+            SELECT tipo, descripcion, monto, fecha
+            FROM movimientos
+            WHERE usuario_id=?
+        """, (usuario_actual,))
+        datos = cursor.fetchall()
+
+        if not datos:
+            messagebox.showinfo("Info", "No hay movimientos para exportar")
+            return
+
+        df = pd.DataFrame(datos, columns=["Tipo", "Descripción", "Monto", "Fecha"])
+        df.to_excel("movimientos.xlsx", index=False)
+
+        messagebox.showinfo("Exportado", "Movimientos exportados a Excel exitosamente!")
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo exportar a Excel:\n{e}")
+
+def exportar_a_pdf():
+    try:
+        cursor.execute("""
+            SELECT tipo, descripcion, monto, fecha
+            FROM movimientos
+            WHERE usuario_id=?
+        """, (usuario_actual,))
+        datos = cursor.fetchall()
+
+        if not datos:
+            messagebox.showinfo("Info", "No hay movimientos para exportar")
+            return
+
+        archivo_pdf = "movimientos.pdf"
+        c = canvas.Canvas(archivo_pdf, pagesize=letter)
+
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(200, 750, "Movimientos del Usuario")
+
+        y = 700
+        c.setFont("Helvetica", 12)
+
+        for tipo, desc, monto, fecha in datos:
+            texto = f"{tipo}   |   {desc}   |   ${monto:,.2f}   |   {fecha}"
+            c.drawString(30, y, texto)
+            y -= 20
+            if y < 50:
+                c.showPage()
+                y = 750
+
+        c.save()
+        messagebox.showinfo("Exportado", "Movimientos exportados a PDF exitosamente!")
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo exportar a PDF:\n{e}")
+
+# ---------------- INTERFAZ PRINCIPAL ----------------
+
 def iniciar_sistema():
     ventana = tk.Tk()
     ventana.title("Sistema Financiero PRO")
@@ -148,49 +211,6 @@ def iniciar_sistema():
     )
     style.map("Treeview", background=[("selected", "#334155")])
 
-    def limpiar_campos():
-        entry_descripcion.delete(0, tk.END)
-        entry_monto.delete(0, tk.END)
-
-    def actualizar_saldo():
-        saldo = obtener_saldo()
-        label_saldo.config(text=f"Saldo actual: ${saldo:,.2f}")
-
-    def cargar_historial():
-        tabla.delete(*tabla.get_children())
-        for tipo, desc, monto, fecha in obtener_historial():
-            tabla.insert("", tk.END, values=(tipo, desc, f"${monto:,.2f}", fecha))
-
-    def agregar_ingreso():
-        try:
-            descripcion = entry_descripcion.get().strip()
-            monto = float(entry_monto.get())
-            if not descripcion:
-                messagebox.showerror("Error", "Ingrese una descripción")
-                return
-
-            guardar_movimiento("ingreso", descripcion, monto)
-            limpiar_campos()
-            actualizar_saldo()
-            cargar_historial()
-        except ValueError:
-            messagebox.showerror("Error", "Monto inválido")
-
-    def agregar_egreso():
-        try:
-            descripcion = entry_descripcion.get().strip()
-            monto = float(entry_monto.get())
-            if not descripcion:
-                messagebox.showerror("Error", "Ingrese una descripción")
-                return
-
-            guardar_movimiento("egreso", descripcion, monto)
-            limpiar_campos()
-            actualizar_saldo()
-            cargar_historial()
-        except ValueError:
-            messagebox.showerror("Error", "Monto inválido")
-
     barra = tk.Frame(ventana, bg="#111827", height=60)
     barra.pack(fill="x")
 
@@ -201,6 +221,24 @@ def iniciar_sistema():
         fg="white",
         font=("Segoe UI", 16, "bold")
     ).pack(side="left", padx=20)
+
+    tk.Button(
+        barra,
+        text="Exportar Excel",
+        bg="#22C55E",
+        fg="white",
+        relief="flat",
+        command=exportar_a_excel
+    ).pack(side="right", padx=20)
+
+    tk.Button(
+        barra,
+        text="Exportar PDF",
+        bg="#22C55E",
+        fg="white",
+        relief="flat",
+        command=exportar_a_pdf
+    ).pack(side="right", padx=20)
 
     tk.Button(
         barra,
@@ -230,24 +268,45 @@ def iniciar_sistema():
     entry_monto = tk.Entry(frame_form, width=40, bg="#334155", fg="white", insertbackground="white")
     entry_monto.grid(row=2, column=1, pady=5)
 
-    tk.Button(frame_form, text="AGREGAR DINERO", bg="#16A34A",
-              fg="white", width=18, relief="flat",
-              command=agregar_ingreso).grid(row=3, column=0, pady=15)
+    def agregar_ingreso():
+        descripcion = entry_descripcion.get().strip()
+        try:
+            monto = float(entry_monto.get())
+        except:
+            messagebox.showerror("Error", "Monto inválido")
+            return
 
-    tk.Button(frame_form, text="RETIRAR", bg="#DC2626",
-              fg="white", width=18, relief="flat",
-              command=agregar_egreso).grid(row=3, column=1, pady=15)
+        if not descripcion:
+            messagebox.showerror("Error", "Ingrese descripción")
+            return
+
+        guardar_movimiento("ingreso", descripcion, monto)
+        actualizar_saldo()
+        cargar_historial()
+
+    def agregar_egreso():
+        descripcion = entry_descripcion.get().strip()
+        try:
+            monto = float(entry_monto.get())
+        except:
+            messagebox.showerror("Error", "Monto inválido")
+            return
+
+        if not descripcion:
+            messagebox.showerror("Error", "Ingrese descripción")
+            return
+
+        guardar_movimiento("egreso", descripcion, monto)
+        actualizar_saldo()
+        cargar_historial()
+
+    tk.Button(frame_form, text="AGREGAR INGRESO", bg="#16A34A", fg="white", command=agregar_ingreso).grid(row=3, column=0, pady=15)
+    tk.Button(frame_form, text="AGREGAR EGRESO", bg="#DC2626", fg="white", command=agregar_egreso).grid(row=3, column=1, pady=15)
 
     frame_saldo = tk.Frame(ventana, bg="#1E293B")
     frame_saldo.pack(pady=10, padx=40, fill="x")
 
-    label_saldo = tk.Label(
-        frame_saldo,
-        text="Saldo actual: $0.00",
-        font=("Segoe UI", 18, "bold"),
-        bg="#1E293B",
-        fg="#FACC15"
-    )
+    label_saldo = tk.Label(frame_saldo, text="Saldo actual: $0.00", font=("Segoe UI", 18, "bold"), bg="#1E293B", fg="#FACC15")
     label_saldo.pack(pady=15)
 
     tabla_frame = tk.Frame(ventana, bg="#0F172A")
@@ -262,12 +321,21 @@ def iniciar_sistema():
 
     tabla.pack(fill="both", expand=True)
 
+    def actualizar_saldo():
+        saldo = obtener_saldo()
+        label_saldo.config(text=f"Saldo actual: ${saldo:,.2f}")
+
+    def cargar_historial():
+        tabla.delete(*tabla.get_children())
+        for tipo, desc, monto, fecha in obtener_historial():
+            tabla.insert("", tk.END, values=(tipo, desc, f"${monto:,.2f}", fecha))
+
     actualizar_saldo()
     cargar_historial()
 
     ventana.mainloop()
 
-
+# ---------------- REGISTRO Y LOGIN ----------------
 
 def ventana_registro():
     reg = tk.Toplevel()
@@ -275,31 +343,29 @@ def ventana_registro():
     reg.geometry("400x350")
     reg.configure(bg="#0F172A")
 
-    tk.Label(reg, text="Registrar Nuevo Usuario",
-             bg="#0F172A", fg="white",
-             font=("Segoe UI", 16, "bold")).pack(pady=15)
+    tk.Label(reg, text="Registrar Nuevo Usuario", bg="#0F172A", fg="white", font=("Segoe UI", 16, "bold")).pack(pady=15)
 
     tk.Label(reg, text="Documento", bg="#0F172A", fg="white").pack(pady=5)
-    entry_doc_reg = tk.Entry(reg)
-    entry_doc_reg.pack(pady=5)
+    entry_doc = tk.Entry(reg)
+    entry_doc.pack(pady=5)
 
     tk.Label(reg, text="Nombre", bg="#0F172A", fg="white").pack(pady=5)
-    entry_nombre_reg = tk.Entry(reg)
-    entry_nombre_reg.pack(pady=5)
+    entry_nombre = tk.Entry(reg)
+    entry_nombre.pack(pady=5)
 
     tk.Label(reg, text="Apellido", bg="#0F172A", fg="white").pack(pady=5)
-    entry_apellido_reg = tk.Entry(reg)
-    entry_apellido_reg.pack(pady=5)
+    entry_apellido = tk.Entry(reg)
+    entry_apellido.pack(pady=5)
 
     tk.Label(reg, text="Contraseña", bg="#0F172A", fg="white").pack(pady=5)
-    entry_pass_reg = tk.Entry(reg, show="*")
-    entry_pass_reg.pack(pady=5)
+    entry_pass = tk.Entry(reg, show="*")
+    entry_pass.pack(pady=5)
 
     def guardar_registro():
-        doc = entry_doc_reg.get().strip()
-        nombre = entry_nombre_reg.get().strip()
-        apellido = entry_apellido_reg.get().strip()
-        pas = entry_pass_reg.get().strip()
+        doc = entry_doc.get().strip()
+        nombre = entry_nombre.get().strip()
+        apellido = entry_apellido.get().strip()
+        pas = entry_pass.get().strip()
 
         if not doc or not nombre or not apellido or not pas:
             messagebox.showerror("Error", "Complete todos los campos")
@@ -316,10 +382,7 @@ def ventana_registro():
         except:
             messagebox.showerror("Error", "Usuario ya existe o dato incorrecto")
 
-    tk.Button(reg, text="Registrar",
-              bg="#16A34A", fg="white",
-              command=guardar_registro).pack(pady=15)
-
+    tk.Button(reg, text="Registrar", bg="#16A34A", fg="white", command=guardar_registro).pack(pady=15)
 
 def ventana_login():
     login = tk.Tk()
@@ -327,9 +390,7 @@ def ventana_login():
     login.geometry("400x420")
     login.configure(bg="#0F172A")
 
-    tk.Label(login, text="Iniciar Sesión",
-             bg="#0F172A", fg="white",
-             font=("Segoe UI", 16, "bold")).pack(pady=20)
+    tk.Label(login, text="Iniciar Sesión", bg="#0F172A", fg="white", font=("Segoe UI", 16, "bold")).pack(pady=20)
 
     tk.Label(login, text="Documento", bg="#0F172A", fg="white").pack()
     entry_doc = tk.Entry(login)
@@ -352,17 +413,11 @@ def ventana_login():
         else:
             messagebox.showerror("Error", "Datos incorrectos")
 
-    tk.Button(login, text="Iniciar sesión",
-              bg="#16A34A", fg="white",
-              command=iniciar_sesion).pack(pady=10)
+    tk.Button(login, text="Iniciar sesión", bg="#16A34A", fg="white", command=iniciar_sesion).pack(pady=10)
 
-    tk.Button(login, text="Registrarse",
-              bg="#2563EB", fg="white",
-              command=ventana_registro).pack()
+    tk.Button(login, text="Registrarse", bg="#2563EB", fg="white", command=ventana_registro).pack()
 
-    tk.Button(login, text="¿Olvidaste tu contraseña?",
-              bg="#FAD015", fg="black",
-              command=recuperar_contrasena).pack(pady=5)
+    tk.Button(login, text="¿Olvidaste tu contraseña?", bg="#FAD015", fg="black", command=recuperar_contrasena).pack(pady=5)
 
     login.mainloop()
 
